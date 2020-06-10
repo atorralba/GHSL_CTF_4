@@ -443,7 +443,7 @@ class MyAdittionalTaintSteps extends TaintTracking::AdditionalTaintStep {
 }
 ~~~
 
-But that was a lot of code and also very repetitive, even though I generalized some of it with `qualifierToCallStep`. So I looked at the default queries (written by professionals, not an amateur like me :-P) and doing so helped me remember [recursive predicates](https://help.semmle.com/QL/ql-handbook/recursion.html) from `CodeQL` detective tutorials. With that, we can write a little recursion which will connect our source with certain methods consecutively called on it. Worth a shot, since it will help us remove a lot of code!
+But that was a lot of code and also very repetitive, even though I generalized some of it with `qualifierToCallStep`. So I looked at the default queries (written by professionals, not an amateur like me :-P) and doing so helped me remember [recursive predicates](https://help.semmle.com/QL/ql-handbook/recursion.html) from CodeQL detective tutorials. With that, we can write a little recursion which will connect our source with certain methods consecutively called on it. Worth a shot, since it will help us remove a lot of code!
 
 ### Optimization with recursive predicates
 
@@ -578,7 +578,7 @@ predicate throwingCallToGetMessageStep(DataFlow::Node step1, DataFlow::Node step
 }
 ~~~
 
-The connection here is establishing by telling CodeQL that the Exception thrown by the `ThrowingCall` is the same as the qualifier of the `HeuristicGetMessageCall`. In that sense, if the tainted parameter of a `ThrowingCall` is reflected in the Exception message, this predicate will connect those two elements. Time to add the last additional taint step:
+The connection here is established by telling CodeQL that the Exception thrown by the `ThrowingCall` is the same as the qualifier of the `HeuristicGetMessageCall`. In that sense, if the tainted parameter of a `ThrowingCall` is reflected in the Exception message, this predicate will connect those two elements. Time to add the last additional taint step:
 
 ~~~ql
 class ThrowingCallTaintStep extends TaintTracking::AdditionalTaintStep {
@@ -786,7 +786,7 @@ public boolean isValid(Container container, ConstraintValidatorContext context) 
     }
 ~~~
 
-I realized it couldn't be used. It was checking if constraint names were repeated in both `softConstraints` and `hardConstraints`, which means that, for our injection to be interpolated here, it first needed to be validated in `SchedulingConstraintSetValidator`, which would crash if we included methods or classes with uppercase letters on them. So the same problem applies: how do we reference this classes and methods without using uppercase at all?
+I realized it couldn't be used. It was checking if constraint names were repeated in both `softConstraints` and `hardConstraints`, which means that, for our injection to be interpolated here, it first needed to be validated in `SchedulingConstraintSetValidator`, which would crash if we included methods or classes with uppercase letters on them. So the same problem applies: how do we reference these classes and methods without using uppercase at all?
 
 More hours of trying crazy things. Looking at the documentation, I found the `@<identifier>` syntax, which references beans registered in the context. Maybe there was something useful there? I searched the codebase for `registerBean`, and found the following;
 
@@ -808,7 +808,7 @@ And as I was almost ready to give up to frustration, after one night of good sle
 
 As I was playing with EL to try to find a way to circumvent our uppercase problem, I stumbled upon a feature that seemed helpful. As some sort of syntax sugar, EL allows to call getter methods as if they were properties of the object, so "object.getSomething()" can be also written as "object.something". That seemed promising, since `get<Oneword>` methods could be called, which gave us access to the `Class` class via a `getClass` call on any object (for instance, `#{"".class}`).
 
-After some time playing with `Class` and the lowercase-only methods that can be called on it, I started to read documentation about the objects returned by those methods. I was still thinking in calling `forName`, but I couldn't because of the casing, and I also couldn't call it like `class.method("something")` because that only works with methods without parameters. But, in the `Class` class' Javadoc, next to `getMethod`, there's [`getMethods`](https://docs.oracle.com/javase/8/docs/api/java/lang/Class.html#getMethods--), which __can__ be called as `class.methods`, which returns all methods of the class.
+After some time playing with `Class` and the lowercase-only methods that can be called on it, I started to read documentation about the objects returned by those methods. I was still thinking in calling `forName`, but I couldn't because of the casing, and I also couldn't call it like `class.method("forName")` (trying to call `getMethod`) because that only works with methods without parameters. But, in the `Class` class' Javadoc, next to `getMethod`, there's [`getMethods`](https://docs.oracle.com/javase/8/docs/api/java/lang/Class.html#getMethods--), which __can__ be called as `class.methods`, which returns all methods of the class.
 
 Which means... We can get the list of all methods and access them by index! (e.g. `class.methods[0]`). Now that could work!
 
